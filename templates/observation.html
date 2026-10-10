@@ -101,7 +101,6 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomIn" title="Zoom in (+)">+</button>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="resetView">Reset view</button>
             <span class="small text-secondary ms-2" id="zoomLevel">100%</span>
-            <span class="small text-secondary ms-auto">Scroll to zoom · Drag to pan · Arrow keys to move</span>
           </div>
           <div id="viewerViewport" class="viewer-viewport" tabindex="0">
             <img id="mainImage" class="viewer-image" alt="" draggable="false">
@@ -260,7 +259,7 @@
 
       function zoomAt(factor, point) {
         const oldScale = scale;
-        const nextScale = Math.max(0.2, Math.min(12, oldScale * factor));
+        const nextScale = Math.max(0.8, Math.min(24, oldScale * factor));
         const px = point ? point.x : viewport.clientWidth / 2;
         const py = point ? point.y : viewport.clientHeight / 2;
         translateX = px - ((px - translateX) / oldScale) * nextScale;

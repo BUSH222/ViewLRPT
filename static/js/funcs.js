@@ -1,4 +1,3 @@
-/* Shared ViewLRPT helpers. */
 (function () {
   "use strict";
 

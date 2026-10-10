@@ -24,7 +24,7 @@ _PREVIEW_SCALE = 0.5
 _PREVIEW_JPEG_QUALITY = 55
 _LANCZOS = Image.Resampling.LANCZOS
 
-app = FastAPI(title="ViewLRPT")
+app = FastAPI()
 
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
