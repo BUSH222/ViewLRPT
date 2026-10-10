@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ViewLRPT · Observation</title>
+  <title>Observation</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="{{ url_for('static', path='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
-  <main class="container-fluid px-0 py-0 editor-page">
+  <main class="container-fluid px-0 py-0">
     <div class="row g-0">
-      <aside class="col-12 col-lg-2 editor-sidebar border-end p-3 p-xl-4">
-        <a id="backLink" class="link-secondary text-decoration-none d-inline-block mb-4" href="{{ url_for('index') }}">
+      <aside class="col-2 editor-sidebar border-end p-4">
+        <a class="link-secondary text-decoration-none d-inline-block mb-4" href="{{ url_for('index') }}">
           <span aria-hidden="true">←</span> Observations
         </a>
 
         <h1 class="h5 mb-1" id="observationSatellite">Observation</h1>
-        <p class="small text-secondary mb-4" id="observationMetadata">Loading observation metadata…</p>
+        <p class="small text-secondary mb-4" id="observationMetadata">Loading…</p>
 
         <form id="editorForm">
           <fieldset class="mb-4">
@@ -33,8 +33,8 @@
             </div>
 
             <div id="channelControls">
-              <label class="form-label small mb-1" for="channelSelect">Light channel</label>
-              <select class="form-select form-select-sm" id="channelSelect" name="channel">
+              <label class="form-label small mb-1" for="channelSelect">Channel</label>
+              <select class="form-select form-select-sm" id="channelSelect">
                 <option value="1">Channel 1</option>
                 <option value="2">Channel 2</option>
                 <option value="3">Channel 3</option>
@@ -44,7 +44,7 @@
 
             <div id="compositeControls" class="d-none">
               <label class="form-label small mb-1" for="compositeSelect">Composite</label>
-              <select class="form-select form-select-sm" id="compositeSelect" name="composite">
+              <select class="form-select form-select-sm" id="compositeSelect">
                 <option value="122">122</option>
                 <option value="123">123</option>
                 <option value="natural_color">Natural color</option>
@@ -53,8 +53,7 @@
               </select>
               <div id="customCompositeWrap" class="mt-2 d-none">
                 <label class="form-label small mb-1" for="customComposite">Custom combination</label>
-                <input class="form-control form-control-sm" id="customComposite" name="custom_composite" type="text" placeholder="e.g. 321" autocomplete="off">
-                <div class="invalid-feedback">Enter a custom channel combination.</div>
+                <input class="form-control form-control-sm" id="customComposite" type="text" placeholder="e.g. 321" autocomplete="off">
               </div>
             </div>
           </fieldset>
@@ -62,11 +61,11 @@
           <fieldset class="mb-4">
             <legend class="editor-section-title">Processing</legend>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="geocorrection" name="geocorrection">
+              <input class="form-check-input" type="checkbox" id="geocorrection">
               <label class="form-check-label" for="geocorrection">Geocorrection</label>
             </div>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="rotate180" name="rotate_180">
+              <input class="form-check-input" type="checkbox" id="rotate180">
               <label class="form-check-label" for="rotate180">Rotate 180°</label>
             </div>
           </fieldset>
@@ -74,42 +73,39 @@
           <fieldset class="mb-4">
             <legend class="editor-section-title">Overlays</legend>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="showMap" name="show_map">
+              <input class="form-check-input" type="checkbox" id="showMap">
               <label class="form-check-label" for="showMap">Show map</label>
             </div>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="showCityLabels" name="show_city_labels">
+              <input class="form-check-input" type="checkbox" id="showCityLabels">
               <label class="form-check-label" for="showCityLabels">Show city labels</label>
             </div>
-            <div class="form-text">Enabling either overlay turns on geocorrection. You can turn geocorrection off afterward.</div>
           </fieldset>
 
           <button id="applyButton" class="btn btn-primary w-100" type="submit">Apply</button>
-          <p class="small text-secondary mt-2 mb-0">Changes are sent only when you click Apply or press Enter in these controls.</p>
         </form>
       </aside>
 
-      <section class="col-12 col-lg-10 px-3 px-xl-4 py-3 py-xl-4">
-        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+      <section class="col-10 px-4 py-4">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
           <div>
             <h2 class="h5 mb-1">Image viewer</h2>
-            <p class="small text-secondary mb-0" id="viewerSummary">Channel 1 · Raw product</p>
+            <p class="small text-secondary mb-0" id="viewerSummary">Channel 1</p>
           </div>
-          <div class="small text-secondary text-end" id="renderStatus" role="status" aria-live="polite">Loading image…</div>
+          <div class="small text-secondary text-end" id="renderStatus" role="status" aria-live="polite">Loading…</div>
         </div>
 
         <div class="viewer-shell">
-          <div class="viewer-toolbar" aria-label="Image navigation controls">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomOut" aria-label="Zoom out" title="Zoom out (−)">−</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomIn" aria-label="Zoom in" title="Zoom in (+)">+</button>
+          <div class="viewer-toolbar">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomOut" title="Zoom out (−)">−</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomIn" title="Zoom in (+)">+</button>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="resetView">Reset view</button>
-            <span class="small text-secondary ms-sm-2" id="zoomLevel">100%</span>
+            <span class="small text-secondary ms-2" id="zoomLevel">100%</span>
             <span class="small text-secondary ms-auto">Scroll to zoom · Drag to pan · Arrow keys to move</span>
           </div>
-          <div id="viewerViewport" class="viewer-viewport" tabindex="0" role="application" aria-label="Satellite image canvas. Use plus and minus to zoom, arrow keys to pan.">
-            <img id="mainImage" class="viewer-image" alt="Selected LRPT image" draggable="false">
-            <div id="viewerEmpty" class="viewer-empty-state">Loading image…</div>
-            <div class="viewer-overlay-message" id="mockLabel">Mock preview</div>
+          <div id="viewerViewport" class="viewer-viewport" tabindex="0">
+            <img id="mainImage" class="viewer-image" alt="" draggable="false">
+            <div id="viewerEmpty" class="viewer-empty-state">Loading…</div>
           </div>
         </div>
       </section>
@@ -118,8 +114,7 @@
 
   <script>
     window.VIEWLRPT_CONFIG = {
-      observationId: {{ observation_id | default('', true) | tojson }},
-      indexUrl: {{ url_for('index') | string | tojson }}
+      observationId: {{ observation_id | default('', true) | tojson }}
     };
   </script>
   <script src="{{ url_for('static', path='js/funcs.js') }}"></script>
@@ -127,11 +122,10 @@
     (function () {
       "use strict";
       const api = window.ViewLRPT;
-      const config = window.VIEWLRPT_CONFIG || {};
-      const query = new URLSearchParams(window.location.search);
-      const observationId = config.observationId || query.get("id") || "demo-20261010-1234";
-      const storageObservationKey = "viewlrpt:active-observation";
-      const storageSettingsKey = "viewlrpt:active-settings";
+      const observationId = (window.VIEWLRPT_CONFIG || {}).observationId
+        || new URLSearchParams(window.location.search).get("id")
+        || "";
+
       const form = document.getElementById("editorForm");
       const modeChannel = document.getElementById("modeChannel");
       const modeComposite = document.getElementById("modeComposite");
@@ -150,11 +144,9 @@
       const viewport = document.getElementById("viewerViewport");
       const status = document.getElementById("renderStatus");
       const emptyState = document.getElementById("viewerEmpty");
-      const mockLabel = document.getElementById("mockLabel");
       const zoomLabel = document.getElementById("zoomLevel");
       const summary = document.getElementById("viewerSummary");
 
-      let observation = api.observationById(observationId);
       let currentObjectUrl = null;
       let scale = 1;
       let translateX = 0;
@@ -162,23 +154,12 @@
       let isPanning = false;
       let panStartX = 0;
       let panStartY = 0;
-      let lastPointer = { x: viewport.clientWidth / 2, y: viewport.clientHeight / 2 };
-
-      const defaultSettings = {
-        display_mode: "channel",
-        channel: "1",
-        composite: "122",
-        custom_composite: "",
-        geocorrection: false,
-        rotate_180: false,
-        show_map: false,
-        show_city_labels: false
-      };
-      let settings = Object.assign({}, defaultSettings);
+      let lastPointer = { x: 0, y: 0 };
 
       function collectSettings() {
+        const mode = modeComposite.checked ? "composite" : "channel";
         return {
-          display_mode: modeComposite.checked ? "composite" : "channel",
+          display_mode: mode,
           channel: Number(channelSelect.value),
           composite: compositeSelect.value,
           custom_composite: customComposite.value.trim(),
@@ -189,39 +170,17 @@
         };
       }
 
-      function saveSettings() {
-        settings = collectSettings();
-        try {
-          sessionStorage.setItem(storageObservationKey, observationId);
-          sessionStorage.setItem(storageSettingsKey, JSON.stringify(settings));
-        } catch (_error) { /* Storage can be disabled; in-memory controls still work. */ }
-      }
-
-      function restoreSettings() {
-        try {
-          const storedObservationId = sessionStorage.getItem(storageObservationKey);
-          if (storedObservationId === observationId) {
-            const saved = JSON.parse(sessionStorage.getItem(storageSettingsKey) || "null");
-            if (saved && typeof saved === "object") settings = Object.assign({}, defaultSettings, saved);
-          } else {
-            settings = Object.assign({}, defaultSettings);
-            sessionStorage.setItem(storageObservationKey, observationId);
-            sessionStorage.setItem(storageSettingsKey, JSON.stringify(settings));
-          }
-        } catch (_error) {
-          settings = Object.assign({}, defaultSettings);
-        }
-
-        modeChannel.checked = settings.display_mode !== "composite";
-        modeComposite.checked = settings.display_mode === "composite";
-        channelSelect.value = String(settings.channel || 1);
-        compositeSelect.value = settings.composite || "122";
-        customComposite.value = settings.custom_composite || "";
-        geocorrection.checked = Boolean(settings.geocorrection);
-        rotate180.checked = Boolean(settings.rotate_180);
-        showMap.checked = Boolean(settings.show_map);
-        showCityLabels.checked = Boolean(settings.show_city_labels);
-        updateControlVisibility();
+      function buildPayload(s) {
+        return {
+          display_mode: s.display_mode,
+          channel: s.display_mode === "channel" ? s.channel : null,
+          composite: s.display_mode === "composite" ? s.composite : null,
+          custom_composite: s.display_mode === "composite" && s.composite === "custom" ? s.custom_composite : null,
+          geocorrection: s.geocorrection,
+          rotate_180: s.rotate_180,
+          map: s.show_map,
+          labels: s.show_city_labels
+        };
       }
 
       function updateControlVisibility() {
@@ -230,107 +189,73 @@
         customCompositeWrap.classList.toggle("d-none", !modeComposite.checked || compositeSelect.value !== "custom");
       }
 
-      function labelForSettings(current) {
-        if (current.display_mode === "channel") return "Channel " + current.channel;
+      function labelForSettings(s) {
+        if (s.display_mode === "channel") return "Channel " + s.channel;
         const names = { "122": "Composite 122", "123": "Composite 123", natural_color: "Natural color", thermal_infrared: "Thermal infrared" };
-        if (current.composite === "custom") return "Custom composite " + (current.custom_composite || "(not set)");
-        return names[current.composite] || "Composite";
+        if (s.composite === "custom") return "Custom composite " + (s.custom_composite || "(not set)");
+        return names[s.composite] || "Composite";
       }
 
-      function mockOptionsFor(current) {
-        const label = labelForSettings(current);
-        const seed = String(observationId).split("").reduce(function (total, character) { return total + character.charCodeAt(0); }, 0) + (current.channel || 0);
-        return {
-          label: label,
-          seed: seed,
-          rotate180: current.rotate_180,
-          geocorrection: current.geocorrection,
-          showMap: current.show_map,
-          showCityLabels: current.show_city_labels
-        };
-      }
-
-      function setViewerImage(result) {
-        if (currentObjectUrl) {
-          URL.revokeObjectURL(currentObjectUrl);
-          currentObjectUrl = null;
-        }
-        image.src = result.url;
-        if (result.objectUrl) currentObjectUrl = result.url;
-        image.alt = labelForSettings(settings) + " for " + (observation.satellite_name || "satellite observation");
+      function setViewerImage(blob) {
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = URL.createObjectURL(blob);
+        image.src = currentObjectUrl;
         emptyState.classList.add("d-none");
-        mockLabel.classList.toggle("d-none", !result.mock);
-        status.textContent = result.mock ? "Mock image · backend unavailable" : "Image loaded";
       }
 
-      async function loadRawChannel() {
-        const current = collectSettings();
-        const channel = current.channel;
-        status.textContent = "Loading channel " + channel + "…";
+      async function loadImage(url, options, pendingText) {
+        status.textContent = pendingText;
         emptyState.classList.remove("d-none");
-        emptyState.textContent = "Loading channel image…";
-        const result = await api.fetchImage(api.channelImageUrl(observationId, channel), { headers: { Accept: "image/png, image/jpeg, application/json" } }, mockOptionsFor(current));
-        settings = collectSettings();
-        setViewerImage(result);
-        summary.textContent = "Channel " + channel + " · Raw product";
+        emptyState.textContent = pendingText;
+        try {
+          const response = await fetch(url, options || {});
+          if (!response.ok) throw new Error("Image API returned " + response.status);
+          setViewerImage(await response.blob());
+          status.textContent = "Loaded";
+        } catch (_error) {
+          emptyState.textContent = "Image could not be loaded.";
+          status.textContent = "Error";
+        }
       }
 
-      async function applyProcessing(event) {
+      function loadRawChannel() {
+        const s = collectSettings();
+        loadImage(
+          api.renderImageUrl(observationId),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "image/png" },
+            body: JSON.stringify(buildPayload(s))
+          },
+          "Loading channel " + s.channel + "…"
+        );
+        summary.textContent = "Channel " + s.channel;
+      }
+
+      function applyProcessing(event) {
         if (event) event.preventDefault();
-        const current = collectSettings();
-        if (current.display_mode === "composite" && current.composite === "custom" && !current.custom_composite) {
-          customComposite.classList.add("is-invalid");
-          customComposite.focus();
-          status.textContent = "Enter a custom composite before applying.";
-          return;
-        }
-        customComposite.classList.remove("is-invalid");
-        settings = current;
-        saveSettings();
+        const s = collectSettings();
         applyButton.disabled = true;
         applyButton.textContent = "Processing…";
-        status.textContent = "Requesting processed image…";
-        emptyState.classList.remove("d-none");
-        emptyState.textContent = "Processing selected options…";
 
-        const payload = {
-          display_mode: current.display_mode,
-          channel: current.display_mode === "channel" ? current.channel : null,
-          composite: current.display_mode === "composite" ? current.composite : null,
-          custom_composite: current.display_mode === "composite" && current.composite === "custom" ? current.custom_composite : null,
-          geocorrection: current.geocorrection,
-          rotate_180: current.rotate_180,
-          overlays: { map: current.show_map, city_labels: current.show_city_labels }
-        };
-
-        try {
-          const result = await api.fetchImage(api.renderImageUrl(observationId), {
+        loadImage(
+          api.renderImageUrl(observationId),
+          {
             method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "image/png, image/jpeg, application/json" },
-            body: JSON.stringify(payload)
-          }, mockOptionsFor(current));
-          setViewerImage(result);
-          summary.textContent = labelForSettings(current) + " · " + (result.mock ? "Mock render" : "Processed product");
-          if (result.mock) {
-            status.textContent = "Mock render shown · implement POST /api/observations/{id}/render to enable processing";
-          }
-          resetView();
-        } finally {
+            headers: { "Content-Type": "application/json", Accept: "image/png" },
+            body: JSON.stringify(buildPayload(s))
+          },
+          "Requesting processed image…"
+        ).finally(function () {
           applyButton.disabled = false;
           applyButton.textContent = "Apply";
-        }
+          summary.textContent = labelForSettings(s);
+        });
       }
 
       function updateTransform() {
         image.style.transform = "translate(" + translateX + "px, " + translateY + "px) scale(" + scale + ")";
         zoomLabel.textContent = Math.round(scale * 100) + "%";
-      }
-
-      function resetView() {
-        scale = 1;
-        translateX = 0;
-        translateY = 0;
-        updateTransform();
       }
 
       function zoomAt(factor, point) {
@@ -344,45 +269,28 @@
         updateTransform();
       }
 
-      function centerPoint() {
-        return lastPointer || { x: viewport.clientWidth / 2, y: viewport.clientHeight / 2 };
-      }
-
       function panBy(dx, dy) {
         translateX += dx;
         translateY += dy;
         updateTransform();
       }
 
-      function updateObservationHeader() {
-        document.getElementById("observationSatellite").textContent = observation.satellite_name || "Satellite observation";
-        const timestamp = api.formatUtc(observation.timestamp_utc || observation.date_utc, true);
-        document.getElementById("observationMetadata").textContent = "NORAD " + (observation.norad_id == null ? "—" : observation.norad_id) + " · " + timestamp + " UTC · " + api.formatInteger(observation.line_count) + " lines";
-      }
-
-      modeChannel.addEventListener("change", function () { updateControlVisibility(); saveSettings(); });
-      modeComposite.addEventListener("change", function () { updateControlVisibility(); saveSettings(); });
-      compositeSelect.addEventListener("change", function () {
-        customComposite.classList.remove("is-invalid");
-        updateControlVisibility();
-      });
-      customComposite.addEventListener("input", function () { customComposite.classList.remove("is-invalid"); saveSettings(); });
-      [channelSelect, compositeSelect, customComposite, geocorrection, rotate180, showMap, showCityLabels].forEach(function (control) {
-        control.addEventListener("change", saveSettings);
-      });
+      modeChannel.addEventListener("change", updateControlVisibility);
+      modeComposite.addEventListener("change", updateControlVisibility);
+      compositeSelect.addEventListener("change", updateControlVisibility);
       showMap.addEventListener("change", function () {
         if (showMap.checked) geocorrection.checked = true;
-        saveSettings();
       });
       showCityLabels.addEventListener("change", function () {
         if (showCityLabels.checked) geocorrection.checked = true;
-        saveSettings();
       });
       form.addEventListener("submit", applyProcessing);
 
-      document.getElementById("zoomIn").addEventListener("click", function () { zoomAt(1.25, centerPoint()); });
-      document.getElementById("zoomOut").addEventListener("click", function () { zoomAt(1 / 1.25, centerPoint()); });
-      document.getElementById("resetView").addEventListener("click", resetView);
+      document.getElementById("zoomIn").addEventListener("click", function () { zoomAt(1.25, lastPointer); });
+      document.getElementById("zoomOut").addEventListener("click", function () { zoomAt(1 / 1.25, lastPointer); });
+      document.getElementById("resetView").addEventListener("click", function () {
+        scale = 1; translateX = 0; translateY = 0; updateTransform();
+      });
 
       viewport.addEventListener("pointermove", function (event) {
         const rect = viewport.getBoundingClientRect();
@@ -402,7 +310,7 @@
         panStartY = event.clientY;
         viewport.classList.add("is-dragging");
         viewport.focus({ preventScroll: true });
-        try { viewport.setPointerCapture(event.pointerId); } catch (_error) { /* Optional on older browsers. */ }
+        try { viewport.setPointerCapture(event.pointerId); } catch (_error) {}
       });
       function stopPanning() {
         isPanning = false;
@@ -414,51 +322,47 @@
       viewport.addEventListener("wheel", function (event) {
         event.preventDefault();
         const rect = viewport.getBoundingClientRect();
-        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        lastPointer = point;
-        zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, point);
+        lastPointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, lastPointer);
       }, { passive: false });
 
       document.addEventListener("keydown", function (event) {
         const target = event.target;
-        const isFormControl = target && (target.matches("input, select, textarea, button") || target.isContentEditable);
-        if (event.key === "Enter" && form.contains(target) && target.tagName !== "BUTTON") {
-          event.preventDefault();
-          applyProcessing();
-          return;
-        }
-        if (isFormControl || event.ctrlKey || event.metaKey || event.altKey) return;
-        if (event.key === "+" || event.key === "=") {
-          event.preventDefault();
-          zoomAt(1.25, centerPoint());
-        } else if (event.key === "-") {
-          event.preventDefault();
-          zoomAt(1 / 1.25, centerPoint());
-        } else if (event.key === "ArrowLeft") {
-          event.preventDefault(); panBy(40, 0);
-        } else if (event.key === "ArrowRight") {
-          event.preventDefault(); panBy(-40, 0);
-        } else if (event.key === "ArrowUp") {
-          event.preventDefault(); panBy(0, 40);
-        } else if (event.key === "ArrowDown") {
-          event.preventDefault(); panBy(0, -40);
-        }
+        if (target && (target.matches("input, select, textarea, button") || target.isContentEditable)) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.key === "Enter") { event.preventDefault(); applyProcessing(); return; }
+        if (event.key === "+" || event.key === "=") { event.preventDefault(); zoomAt(1.25, lastPointer); }
+        else if (event.key === "-") { event.preventDefault(); zoomAt(1 / 1.25, lastPointer); }
+        else if (event.key === "ArrowLeft") { event.preventDefault(); panBy(40, 0); }
+        else if (event.key === "ArrowRight") { event.preventDefault(); panBy(-40, 0); }
+        else if (event.key === "ArrowUp") { event.preventDefault(); panBy(0, 40); }
+        else if (event.key === "ArrowDown") { event.preventDefault(); panBy(0, -40); }
       });
 
       window.addEventListener("beforeunload", function () {
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
       });
 
-      restoreSettings();
-      api.getObservation(observationId).then(function (result) {
-        observation = result.item || api.observationById(observationId);
-        updateObservationHeader();
-        if (result.mock) {
-          status.textContent = "Demo observation · backend unavailable";
-        }
-        loadRawChannel();
-      });
+      if (!observationId) {
+        status.textContent = "No observation selected.";
+        emptyState.textContent = "No observation selected.";
+        return;
+      }
+
+      updateControlVisibility();
       updateTransform();
+
+      api.getObservation(observationId).then(function (item) {
+        document.getElementById("observationSatellite").textContent = item.satellite_name || "Observation";
+        document.getElementById("observationMetadata").textContent =
+          "NORAD " + (item.norad_id == null ? "—" : item.norad_id) +
+          " · " + api.formatUtc(item.timestamp_utc) + " UTC" +
+          " · " + api.formatInteger(item.line_count) + " lines";
+        loadRawChannel();
+      }).catch(function () {
+        status.textContent = "Observation not found.";
+        emptyState.textContent = "Observation not found.";
+      });
     }());
   </script>
 </body>

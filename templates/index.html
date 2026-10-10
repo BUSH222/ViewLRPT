@@ -85,6 +85,11 @@
         return base + (base.indexOf("?") >= 0 ? "&" : "?") + "id=" + encodeURIComponent(observation.id);
       }
 
+      function getPreviewUrl(observation) {
+        const base = api.API_BASE || "/api";
+        return base + "/observations/" + encodeURIComponent(observation.id) + "/preview";
+      }
+
       function renderRows() {
         const sorted = observations.slice().sort(function (a, b) {
           const left = getSortValue(a, sortKey);
@@ -119,27 +124,20 @@
           const timestamp = api.escapeHtml(api.formatUtc(observation.timestamp_utc || observation.date_utc, true));
           const lines = api.escapeHtml(api.formatInteger(observation.line_count));
           const href = api.escapeHtml(getObservationHref(observation));
-          const thumbs = [1, 2, 3].map(function (channel) {
-            const imageUrl = api.escapeHtml(api.thumbnailUrl(observation, channel));
-            const alt = api.escapeHtml(satelliteName + " channel " + channel + " thumbnail");
-            const fallbackUrl = api.escapeHtml(api.mockImageDataUri({ label: "CH " + channel, seed: channel + String(observation.id || "").length, thumbnail: true }));
-            return '<img class="preview-thumb" src="' + imageUrl + '" alt="' + alt + '" loading="lazy" data-fallback="' + fallbackUrl + '">';
-          }).join("");
+          const previewUrl = api.escapeHtml(getPreviewUrl(observation));
+          const previewAlt = api.escapeHtml((observation.satellite_name || "Observation") + " preview from " + timestamp);
+
           return '<tr class="observation-row" data-observation-id="' + safeId + '">' +
-            '<td><a class="preview-link" href="' + href + '" aria-label="Open ' + satelliteName + ' observation from ' + timestamp + '"><span class="preview-strip">' + thumbs + '</span></a></td>' +
+            '<td>' +
+              '<a class="preview-link" href="' + href + '" aria-label="Open ' + satelliteName + ' observation from ' + timestamp + '">' +
+                '<img class="preview-thumb" src="' + previewUrl + '" alt="' + previewAlt + '" loading="lazy">' +
+              '</a>' +
+            '</td>' +
             '<td><span class="fw-medium">' + satelliteName + '</span><span class="d-block small text-secondary">(' + norad + ')</span></td>' +
             '<td><time datetime="' + api.escapeHtml(observation.timestamp_utc || observation.date_utc || "") + '">' + timestamp + '</time></td>' +
             '<td class="text-nowrap">' + lines + '</td>' +
             '</tr>';
         }).join("");
-
-        rowContainer.querySelectorAll("img[data-fallback]").forEach(function (image) {
-          image.addEventListener("error", function () {
-            if (image.dataset.fallback && image.src !== image.dataset.fallback) {
-              image.src = image.dataset.fallback;
-            }
-          }, { once: true });
-        });
       }
 
       document.querySelectorAll("[data-sort-key]").forEach(function (button) {
@@ -156,17 +154,13 @@
       });
 
       api.getObservations().then(function (result) {
-        observations = result.items;
-        status.textContent = result.mock ? "Demo data · API unavailable" : observations.length + " observations";
-        if (result.mock) {
-          loadError.textContent = "Showing sample observations and generated previews because /api/observations is not available yet.";
-          loadError.classList.remove("d-none");
-        }
+        observations = result.items || [];
+        status.textContent = observations.length + " observation" + (observations.length === 1 ? "" : "s");
         renderRows();
-      }).catch(function () {
-        observations = api.cloneDemoObservations();
-        status.textContent = "Demo data";
-        loadError.textContent = "The observation list could not be loaded. Showing sample data.";
+      }).catch(function (error) {
+        observations = [];
+        status.textContent = "Could not load observations";
+        loadError.textContent = "The observation list could not be loaded (" + (error && error.message ? error.message : "unknown error") + ").";
         loadError.classList.remove("d-none");
         renderRows();
       });

@@ -1,26 +1,5 @@
-"""Minimal FastAPI backend for the ViewLRPT templates, backed by real observations.
-
-Scans OBSERVATION_DIR (from .env) for folders laid out like:
-
-    <prefix>_<YYYYmmddTHHMMSSZ>_<norad>/
-        satdump_output/
-            dataset.json
-            MSU-MR/
-                MSU-MR-1.png
-                MSU-MR-2.png
-                ...
-
-Only folders that have a satdump_output/MSU-MR directory containing at
-least one MSU-MR-<n>.png are exposed. The line count is the height (in
-pixels) of the channel 1 image, read straight from the PNG header.
-
-Image endpoints always return channel 1. The only transform kept is
-rotate_180.
-"""
-
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
@@ -29,27 +8,30 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-
 load_dotenv()
 
-OBSERVATION_DIR = Path(os.getenv("OBSERVATION_DIR", "./observations")).expanduser().resolve()
+OBSERVATION_DIR = Path(os.getenv("OBSERVATION_DIR")).resolve()
+
+STATIC_DIR = Path("static").resolve()
+PREVIEW_CACHE_DIR = STATIC_DIR / "cache" / "previews"
+
+_PREVIEW_SCALE = 0.5
+_PREVIEW_JPEG_QUALITY = 55
+_LANCZOS = Image.Resampling.LANCZOS
 
 app = FastAPI(title="ViewLRPT")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+PREVIEW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory="templates")
 
-
-# ---------------------------------------------------------------------------
-# Observation scanning
-# ---------------------------------------------------------------------------
 
 _FOLDER_RE = re.compile(r"^(?P<prefix>\d+)_(?P<stamp>\d{8}T\d{6}Z)_(?P<norad>\d+)$")
 _PNG_SIG = b"\x89PNG\r\n\x1a\n"
@@ -64,9 +46,10 @@ def _png_size(path: Path) -> tuple[int, int] | None:
         return None
     if len(header) < 24 or header[:8] != _PNG_SIG or header[12:16] != b"IHDR":
         return None
-    width = int.from_bytes(header[16:20], "big")
-    height = int.from_bytes(header[20:24], "big")
-    return width, height
+    return (
+        int.from_bytes(header[16:20], "big"),
+        int.from_bytes(header[20:24], "big"),
+    )
 
 
 def _iso_utc(dt: datetime) -> str:
@@ -99,7 +82,6 @@ def _scan_observations() -> list[dict]:
             if candidate.is_file():
                 channels[channel] = candidate
 
-        # Omit observations that have no channel images at all.
         if not channels:
             continue
 
@@ -173,13 +155,83 @@ def _public_view(obs: dict) -> dict:
     }
 
 
-def _channel_one_path(obs: dict) -> Path | None:
-    """Return the channel 1 PNG, falling back to the first available one."""
-    if 1 in obs["channels"]:
-        return obs["channels"][1]
-    if obs["channels"]:
-        return obs["channels"][min(obs["channels"])]
-    return None
+# ---------------------------------------------------------------------------
+# Preview thumbnails (static/cache/previews/<observation_id>.jpg)
+# ---------------------------------------------------------------------------
+
+
+def _build_preview_image(obs: dict) -> Image.Image | None:
+    """
+    Build the base image for a preview.
+
+    Preference order:
+      1. Channel 4 as-is (single band, grayscale JPEG).
+      2. Channels 1 & 2 merged as RGB(2, 2, 1).
+      3. Any other available channel as grayscale.
+    """
+    channels = obs["channels"]
+    try:
+        if 4 in channels:
+            with Image.open(channels[4]) as img:
+                base = img.convert("L")
+        elif 1 in channels and 2 in channels:
+            with Image.open(channels[1]) as r_img:
+                r = r_img.convert("L")
+            with Image.open(channels[2]) as g_img:
+                g = g_img.convert("L")
+            if g.size != r.size:
+                g = g.resize(r.size, _LANCZOS)
+            base = Image.merge("RGB", (g, g, r))
+        else:
+            fallback = channels[min(channels)]
+            with Image.open(fallback) as img:
+                base = img.convert("L")
+    except Exception:
+        return None
+
+    width, height = base.size
+    target = (
+        max(1, round(width * _PREVIEW_SCALE)),
+        max(1, round(height * _PREVIEW_SCALE)),
+    )
+    if target != base.size:
+        base = base.resize(target, _LANCZOS)
+    return base
+
+
+def _get_preview(obs: dict) -> Path | None:
+    """Return a path to a cached preview JPEG, generating it if needed."""
+    target = PREVIEW_CACHE_DIR / f"{obs['id']}.jpg"
+    sources = list(obs["channels"].values())
+
+    if target.is_file():
+        try:
+            target_mtime = target.stat().st_mtime
+            if all(target_mtime >= src.stat().st_mtime for src in sources):
+                return target
+        except OSError:
+            pass
+
+    image = _build_preview_image(obs)
+    if image is None:
+        return None
+
+    try:
+        if image.mode not in ("L", "RGB"):
+            image = image.convert("RGB")
+        image.save(
+            target,
+            format="JPEG",
+            quality=_PREVIEW_JPEG_QUALITY,
+            optimize=True,
+            progressive=True,
+        )
+    except Exception:
+        return None
+    finally:
+        image.close()
+
+    return target
 
 
 # ---------------------------------------------------------------------------
@@ -201,19 +253,6 @@ async def observation(request: Request, id: str = ""):
         request=request,
         name="observation.html",
         context={"observation_id": id or default_id},
-    )
-
-
-@app.get(
-    "/observations/{observation_id}",
-    response_class=HTMLResponse,
-    name="observation_detail",
-)
-async def observation_detail(request: Request, observation_id: str):
-    return templates.TemplateResponse(
-        request=request,
-        name="observation.html",
-        context={"observation_id": observation_id},
     )
 
 
@@ -244,26 +283,45 @@ async def api_reload():
 
 
 # ---------------------------------------------------------------------------
-# Channel image endpoint — always serves channel 1
+# Preview thumbnail
 # ---------------------------------------------------------------------------
 
 
-@app.get("/api/observations/{observation_id}/channels/{channel}")
-def api_channel_image(observation_id: str, channel: int, size: str = "full"):
+@app.get("/api/observations/{observation_id}/preview")
+def api_observation_preview(observation_id: str):
     obs = _find(observation_id)
     if obs is None:
         raise HTTPException(status_code=404, detail="Observation not found")
 
-    path = _channel_one_path(obs)
+    path = _get_preview(obs)
     if path is None:
-        raise HTTPException(status_code=404, detail="No channels available")
+        raise HTTPException(status_code=404, detail="Preview not available")
 
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(
+        path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 # ---------------------------------------------------------------------------
-# Render endpoint — channel 1, optional rotate_180 only
+# Render endpoint
 # ---------------------------------------------------------------------------
+#
+# Payload (all keys optional):
+#
+#   {
+#     "display_mode":      "channel" | "composite" | "custom_composite",
+#     "channel":           1-4,               # for display_mode == "channel"
+#     "composite":         "<name>",          # for display_mode == "composite"
+#     "custom_composite":  "<spec>",          # for display_mode == "custom_composite"
+#     "rotate_180":        bool,   # accepted, not yet implemented
+#     "geocorrection":     bool,   # accepted, not yet implemented
+#     "map":               bool,   # accepted, not yet implemented
+#     "labels":            bool    # accepted, not yet implemented
+#   }
+#
+# Composite modes are stubs; they will be wired to external scripts later.
 
 
 @app.post("/api/observations/{observation_id}/render")
@@ -273,40 +331,30 @@ def api_render(observation_id: str, payload: dict | None = None):
         raise HTTPException(status_code=404, detail="Observation not found")
 
     payload = payload or {}
-    rotate = bool(payload.get("rotate_180"))
+    display_mode = str(payload.get("display_mode") or "channel").lower()
 
-    path = _channel_one_path(obs)
-    if path is None:
-        raise HTTPException(status_code=404, detail="No channels available")
+    # Accepted for API stability, not yet implemented.
+    _rotate_180 = bool(payload.get("rotate_180"))
+    _geocorrection = bool(payload.get("geocorrection"))
+    _map = bool(payload.get("map"))
+    _labels = bool(payload.get("labels"))
 
-    # No transformation requested: stream the file directly.
-    if not rotate:
+    if display_mode == "channel":
+        try:
+            channel = int(payload.get("channel") or 1)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid channel") from exc
+
+        if channel not in (1, 2, 3, 4):
+            raise HTTPException(status_code=400, detail="Channel must be 1, 2, 3, or 4")
+
+        path = obs["channels"].get(channel)
+        if path is None:
+            raise HTTPException(status_code=404, detail=f"Channel {channel} not available")
+
         return FileResponse(path, media_type="image/png")
 
-    try:
-        with Image.open(path) as img:
-            rotated = img.rotate(180)
-            buf = io.BytesIO()
-            rotated.save(buf, format="PNG")
-    except Exception:
-        return FileResponse(path, media_type="image/png")
+    if display_mode in ("composite", "custom_composite"):
+        raise HTTPException(status_code=501, detail="Composite rendering not yet implemented")
 
-    return Response(
-        content=buf.getvalue(),
-        media_type="image/png",
-        headers={"Cache-Control": "public, max-age=60"},
-    )
-
-
-# ---------------------------------------------------------------------------
-# Health
-# ---------------------------------------------------------------------------
-
-
-@app.get("/health")
-async def health():
-    return {
-        "status": "ok",
-        "observation_dir": str(OBSERVATION_DIR),
-        "observations": len(_observations()),
-    }
+    raise HTTPException(status_code=400, detail=f"Unknown display_mode '{display_mode}'")
