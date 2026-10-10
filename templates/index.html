@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ViewLRPT · Observations</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', path='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+  <main class="container-fluid px-3 px-md-4 py-4">
+    <header class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+      <div>
+        <h1 class="h3 mb-1">ViewLRPT</h1>
+        <p class="text-secondary mb-0">Satellite observations</p>
+      </div>
+      <div class="small text-secondary" id="dataSourceStatus" aria-live="polite">Loading observations…</div>
+    </header>
+
+    <div id="loadError" class="alert alert-light border py-2 small d-none" role="status"></div>
+
+    <div class="table-responsive border">
+      <table class="table table-sm table-hover observation-table">
+        <colgroup>
+          <col class="preview-column">
+          <col class="satellite-column">
+          <col class="date-column">
+          <col class="lines-column">
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Preview</th>
+            <th scope="col" aria-sort="none">
+              <button class="sort-button" type="button" data-sort-key="satellite" aria-label="Sort by satellite">
+                Satellite <span class="sort-arrow" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="descending">
+              <button class="sort-button" type="button" data-sort-key="date" aria-label="Sort by date and time in UTC">
+                Date / time (UTC) <span class="sort-arrow" aria-hidden="true">↓</span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="none">
+              <button class="sort-button" type="button" data-sort-key="lines" aria-label="Sort by line count">
+                Lines <span class="sort-arrow" aria-hidden="true"></span>
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody id="observationRows">
+          <tr><td colspan="4" class="text-secondary py-4">Loading observations…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="small text-secondary mt-3 mb-0">Select any preview strip to open the observation editor. Dates and times are shown in UTC.</p>
+  </main>
+
+  <script>
+    window.VIEWLRPT_CONFIG = {
+      observationUrl: {{ url_for('observation') | string | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', path='js/funcs.js') }}"></script>
+  <script>
+    (function () {
+      "use strict";
+      const api = window.ViewLRPT;
+      const rowContainer = document.getElementById("observationRows");
+      const status = document.getElementById("dataSourceStatus");
+      const loadError = document.getElementById("loadError");
+      const config = window.VIEWLRPT_CONFIG || {};
+      let observations = [];
+      let sortKey = "date";
+      let sortDirection = "desc";
+
+      function getSortValue(observation, key) {
+        if (key === "satellite") return (observation.satellite_name || "") + " " + (observation.norad_id || "");
+        if (key === "lines") return Number(observation.line_count || 0);
+        return new Date(observation.timestamp_utc || observation.date_utc || 0).getTime() || 0;
+      }
+
+      function getObservationHref(observation) {
+        const base = config.observationUrl || "/observation";
+        return base + (base.indexOf("?") >= 0 ? "&" : "?") + "id=" + encodeURIComponent(observation.id);
+      }
+
+      function renderRows() {
+        const sorted = observations.slice().sort(function (a, b) {
+          const left = getSortValue(a, sortKey);
+          const right = getSortValue(b, sortKey);
+          let comparison;
+          if (typeof left === "string" || typeof right === "string") {
+            comparison = String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+          } else {
+            comparison = left === right ? 0 : (left < right ? -1 : 1);
+          }
+          return sortDirection === "asc" ? comparison : -comparison;
+        });
+
+        document.querySelectorAll("[data-sort-key]").forEach(function (button) {
+          const key = button.dataset.sortKey;
+          const th = button.closest("th");
+          const arrow = button.querySelector(".sort-arrow");
+          const active = key === sortKey;
+          if (th) th.setAttribute("aria-sort", active ? (sortDirection === "asc" ? "ascending" : "descending") : "none");
+          if (arrow) arrow.textContent = active ? (sortDirection === "asc" ? "↑" : "↓") : "";
+        });
+
+        if (!sorted.length) {
+          rowContainer.innerHTML = '<tr><td colspan="4" class="text-secondary py-4">No observations found.</td></tr>';
+          return;
+        }
+
+        rowContainer.innerHTML = sorted.map(function (observation) {
+          const safeId = api.escapeHtml(observation.id);
+          const satelliteName = api.escapeHtml(observation.satellite_name || "Unknown satellite");
+          const norad = api.escapeHtml(observation.norad_id == null ? "—" : observation.norad_id);
+          const timestamp = api.escapeHtml(api.formatUtc(observation.timestamp_utc || observation.date_utc, true));
+          const lines = api.escapeHtml(api.formatInteger(observation.line_count));
+          const href = api.escapeHtml(getObservationHref(observation));
+          const thumbs = [1, 2, 3].map(function (channel) {
+            const imageUrl = api.escapeHtml(api.thumbnailUrl(observation, channel));
+            const alt = api.escapeHtml(satelliteName + " channel " + channel + " thumbnail");
+            const fallbackUrl = api.escapeHtml(api.mockImageDataUri({ label: "CH " + channel, seed: channel + String(observation.id || "").length, thumbnail: true }));
+            return '<img class="preview-thumb" src="' + imageUrl + '" alt="' + alt + '" loading="lazy" data-fallback="' + fallbackUrl + '">';
+          }).join("");
+          return '<tr class="observation-row" data-observation-id="' + safeId + '">' +
+            '<td><a class="preview-link" href="' + href + '" aria-label="Open ' + satelliteName + ' observation from ' + timestamp + '"><span class="preview-strip">' + thumbs + '</span></a></td>' +
+            '<td><span class="fw-medium">' + satelliteName + '</span><span class="d-block small text-secondary">(' + norad + ')</span></td>' +
+            '<td><time datetime="' + api.escapeHtml(observation.timestamp_utc || observation.date_utc || "") + '">' + timestamp + '</time></td>' +
+            '<td class="text-nowrap">' + lines + '</td>' +
+            '</tr>';
+        }).join("");
+
+        rowContainer.querySelectorAll("img[data-fallback]").forEach(function (image) {
+          image.addEventListener("error", function () {
+            if (image.dataset.fallback && image.src !== image.dataset.fallback) {
+              image.src = image.dataset.fallback;
+            }
+          }, { once: true });
+        });
+      }
+
+      document.querySelectorAll("[data-sort-key]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          const selectedKey = button.dataset.sortKey;
+          if (selectedKey === sortKey) {
+            sortDirection = sortDirection === "asc" ? "desc" : "asc";
+          } else {
+            sortKey = selectedKey;
+            sortDirection = "asc";
+          }
+          renderRows();
+        });
+      });
+
+      api.getObservations().then(function (result) {
+        observations = result.items;
+        status.textContent = result.mock ? "Demo data · API unavailable" : observations.length + " observations";
+        if (result.mock) {
+          loadError.textContent = "Showing sample observations and generated previews because /api/observations is not available yet.";
+          loadError.classList.remove("d-none");
+        }
+        renderRows();
+      }).catch(function () {
+        observations = api.cloneDemoObservations();
+        status.textContent = "Demo data";
+        loadError.textContent = "The observation list could not be loaded. Showing sample data.";
+        loadError.classList.remove("d-none");
+        renderRows();
+      });
+    }());
+  </script>
+</body>
+</html>
